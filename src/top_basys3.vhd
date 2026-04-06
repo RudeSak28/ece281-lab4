@@ -28,6 +28,9 @@ architecture top_basys3_arch of top_basys3 is
     signal w_clk : std_logic;
     signal floor : std_logic_vector (3 downto 0);
     signal f_sel : unsigned(1 downto 0);
+    signal w_data3,w_data2,w_data1,w_data0 : std_logic_vector (3 downto 0);
+    signal w_out : std_logic_vector(3 downto 0);
+    signal w_sel : std_logic_vector(3 downto 0);
     --signal w_lights_R : std_logic_vector (2 downto 0);
   
 	-- component declarations
@@ -93,13 +96,14 @@ begin
 	   
 	tdm_inst : TDM4
 	   port map(
+	       i_clk => w_clk,
 	       i_reset => btnR,
-	       i_D3  => f_sel,
-	       i_D2  => f_sel,
-	       i_D1  => f_sel,
-	       i_D0  => f_sel,
-	       o_data =>,
-	       o_sel =>
+	       i_D3  => w_data3,
+	       i_D2  => w_data2,
+	       i_D1  => w_data1,
+	       i_D0  => w_data0,
+	       o_data => w_out,
+	       o_sel => w_sel
 	   );
 	-- CONCURRENT STATEMENTS ----------------------------
 	
