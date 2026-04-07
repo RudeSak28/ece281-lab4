@@ -26,9 +26,13 @@ architecture top_basys3_arch of top_basys3 is
 
     -- signal declarations
     signal w_clk : std_logic;
-    signal floor : std_logic_vector (3 downto 0);
-    signal f_sel : unsigned(1 downto 0);
-    signal w_data3,w_data2,w_data1,w_data0 : std_logic_vector (3 downto 0);
+    signal w_tdm_clk : std_logic;
+    signal floor1 : std_logic_vector (3 downto 0);
+    signal floor2 : std_logic_vector (3 downto 0);
+    signal w_reset_clk : std_logic;
+    signal w_reset_fsm : std_logic;
+   --signal f_sel : unsigned(1 downto 0);
+    --signal w_data3,w_data2,w_data1,w_data0 : std_logic_vector (3 downto 0);
     signal w_out : std_logic_vector(3 downto 0);
     signal w_sel : std_logic_vector(3 downto 0);
     --signal w_lights_R : std_logic_vector (2 downto 0);
@@ -76,35 +80,68 @@ architecture top_basys3_arch of top_basys3 is
 	
 begin
 	-- PORT MAPS ----------------------------------------
-    	
+    w_reset_clk <= btnL or btnU;
+    w_reset_fsm <= btnR or btnU;
+    
+    an <= w_sel;
+    
+    led(15) <= w_clk;
+    led(14 downto 0) <= (others => '0');
+    --LED 15 must be tied to the clock signal that drives the FSM.
+    --You may use the other LEDs for debugging. For example, outputting the current floor in binary. Otherwise they should be grounded.
 	uut_inst : clock_divider 
-	generic map ( k_DIV => 12500000 )
+	generic map ( k_DIV => 25000000 ) --used genAI to help explain what clock div values are good for what purposes. Implemented
+	                                   -- for both clocks
 	port map (
 		i_clk   => clk,
-		i_reset => btnL,
+		i_reset => w_reset_clk,
 		o_clk => w_clk
 	);
 	
-	fsm_inst : elevator_controller_fsm
+	tdm_clk_inst : clock_divider 
+	generic map ( k_DIV => 50000 )
+	port map (
+		i_clk   => clk,
+		i_reset => w_reset_clk, --used GenAI to explain why I would need a new reset signal instead of just assigning it to
+		                        -- to a button. Repeated for all i_reset.
+		o_clk => w_tdm_clk
+	);
+	
+	fsm_inst1 : elevator_controller_fsm
 	   port map(
 	       i_clk => w_clk,
-	       i_reset => btnR,
+	       i_reset => w_reset_fsm,
 	       is_stopped  => sw(0),
 	       go_up_down => sw(1),
-	       o_floor => floor
+	       o_floor => floor1
+	   );
+	
+	fsm_inst2 : elevator_controller_fsm
+	   port map(
+	       i_clk => w_clk,
+	       i_reset => w_reset_fsm,
+	       is_stopped  => sw(14),
+	       go_up_down => sw(15),
+	       o_floor => floor2
 	   );
 	   
 	tdm_inst : TDM4
 	   port map(
-	       i_clk => w_clk,
-	       i_reset => btnR,
-	       i_D3  => w_data3,
-	       i_D2  => w_data2,
-	       i_D1  => w_data1,
-	       i_D0  => w_data0,
+	       i_clk => w_tdm_clk,
+	       i_reset => w_reset_fsm,
+	       i_D3  => x"F",
+	       i_D2  => floor2,
+	       i_D1  => x"F",
+	       i_D0  => floor1,
 	       o_data => w_out,
 	       o_sel => w_sel
 	   );
+	   
+	sevenseg_inst : sevenseg_decoder
+	port map(
+	   i_Hex => w_out,
+	   o_seg_n => seg
+	);
 	-- CONCURRENT STATEMENTS ----------------------------
 	
 	-- LED 15 gets the FSM slow clock signal. The rest are grounded.
